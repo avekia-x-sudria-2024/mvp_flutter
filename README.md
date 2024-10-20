@@ -25,31 +25,31 @@
 
 1. **Cloner le dépôt :**
 
-   ```bash
-   git clone https://github.com/avekia-x-sudria-2024/mvp_flutter.git
-   ```
+```bash
+git clone https://github.com/avekia-x-sudria-2024/mvp_flutter.git
+```
 
 2. **Accéder au répertoire du projet :**
 
-   ```bash
-   cd mvp_flutter
-   ```
+```bash
+cd mvp_flutter
+```
 
 3. **Installer les dépendances :**
 
 Assurez-vous d'avoir Flutter installé. Ensuite, exécutez :
 
-   ```bash
-   flutter pub get
-   ```
+```bash
+flutter pub get
+```
 
 4. **Lancer l'application :**
 
 Vous pouvez exécuter l'application sur une page web ou un émulateur avec la commande :
 
-   ```bash
-   flutter run
-   ```
+```bash
+flutter run
+```
 
 ## Utilisation
 
