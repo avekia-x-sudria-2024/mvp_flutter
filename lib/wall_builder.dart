@@ -16,7 +16,6 @@ class _WallBuilderState extends State<WallBuilder> {
   bool isDrawingWall = false; // État pour savoir si on dessine un mur
   Line? selectedWall; // Mur sélectionné pour édition
   Offset? selectedEndpoint; // L'extrémité sélectionnée pour modification
-// Tolérance pour la détection des clics
   static const double gridSize = 20.0; // Taille de la grille
 
   @override
@@ -37,10 +36,12 @@ class _WallBuilderState extends State<WallBuilder> {
   void _handleKeyEvent(RawKeyEvent event) {
     if (event is RawKeyDownEvent &&
         event.logicalKey == LogicalKeyboardKey.delete) {
-      // Supprimer les murs sélectionnés
-      setState(() {
-        walls.removeWhere((wall) => wall.isSelected);
-      });
+      // Supprimer les murs sélectionnés si on n'est pas en mode dessin
+      if (!isDrawingWall) {
+        setState(() {
+          walls.removeWhere((wall) => wall.isSelected);
+        });
+      }
     }
   }
 
@@ -48,19 +49,35 @@ class _WallBuilderState extends State<WallBuilder> {
   void _onTapDown(TapDownDetails details) {
     final tapPosition = details.localPosition;
 
-    if (startPoint == null) {
-      // Vérifier si un mur ou une extrémité est cliqué
+    if (isDrawingWall) {
+      // Si en mode dessin de mur, seulement dessiner un nouveau mur, pas d'édition
+      if (startPoint == null) {
+        setState(() {
+          startPoint = _snapToGrid(tapPosition); // Définir le point de départ
+          endPoint = startPoint; // Initialiser le point d'arrivée
+        });
+      } else {
+        setState(() {
+          walls.add(Line(startPoint!, endPoint!)); // Ajouter un nouveau mur
+          startPoint = null; // Réinitialiser les points
+          endPoint = null;
+        });
+      }
+    } else {
+      // Si hors du mode dessin, on peut éditer les murs
       for (var wall in walls) {
         if (isNearPoint(tapPosition, wall.start)) {
           setState(() {
             selectedWall = wall;
             selectedEndpoint = wall.start; // Sélectionner le point de départ
+            wall.isSelected = true; // Marquer comme sélectionné
           });
           return;
         } else if (isNearPoint(tapPosition, wall.end)) {
           setState(() {
             selectedWall = wall;
             selectedEndpoint = wall.end; // Sélectionner le point d'arrivée
+            wall.isSelected = true; // Marquer comme sélectionné
           });
           return;
         } else if (isNearLine(tapPosition, wall.start, wall.end)) {
@@ -72,28 +89,21 @@ class _WallBuilderState extends State<WallBuilder> {
         }
       }
 
-      // Débuter un nouveau mur
+      // Si aucun mur n'est sélectionné, désélectionner tout
       setState(() {
-        startPoint = _snapToGrid(tapPosition); // Définir le point de départ
-        endPoint = startPoint; // Initialiser le point d'arrivée
-      });
-    } else {
-      // Ajouter le mur si un point de départ est déjà défini
-      setState(() {
-        walls.add(Line(startPoint!, endPoint!)); // Ajouter un nouveau mur
-        startPoint = null; // Réinitialiser les points
-        endPoint = null;
+        selectedWall = null;
+        selectedEndpoint = null;
+        walls.forEach((wall) => wall.isSelected = false);
       });
     }
   }
 
   // Mettre à jour la position du mur pendant le glissement
   void _onPanUpdate(DragUpdateDetails details) {
-    final dragPosition = _snapToGrid(
-        details.localPosition); // Position de glissement arrondie à la grille
+    final dragPosition = _snapToGrid(details.localPosition);
 
-    if (selectedWall != null && selectedEndpoint != null) {
-      // Déplacer une extrémité du mur sélectionné
+    if (!isDrawingWall && selectedWall != null && selectedEndpoint != null) {
+      // Déplacer une extrémité du mur sélectionné si en mode édition
       setState(() {
         if (selectedEndpoint == selectedWall!.start) {
           selectedWall!.start = dragPosition; // Déplacer le point de départ
@@ -101,7 +111,7 @@ class _WallBuilderState extends State<WallBuilder> {
           selectedWall!.end = dragPosition; // Déplacer le point d'arrivée
         }
       });
-    } else if (startPoint != null) {
+    } else if (isDrawingWall && startPoint != null) {
       // Mettre à jour le point d'arrivée pendant le dessin
       setState(() {
         endPoint = dragPosition;
@@ -117,16 +127,14 @@ class _WallBuilderState extends State<WallBuilder> {
   }
 
   // Vérifier si un point est proche d'une ligne
-  bool isNearLine(Offset p, Offset start, Offset end,
-      {double threshold = 10.0}) {
+  bool isNearLine(Offset p, Offset start, Offset end, {double threshold = 10.0}) {
     double distance = _distancePointToLine(p, start, end);
     return distance < threshold; // Retourne vrai si le point est proche
   }
 
   // Vérifier si un point est proche d'un autre point
   bool isNearPoint(Offset p, Offset point, {double threshold = 10.0}) {
-    return (p - point).distance <
-        threshold; // Retourne vrai si le point est proche
+    return (p - point).distance < threshold; // Retourne vrai si le point est proche
   }
 
   // Calculer la distance d'un point à une ligne
@@ -142,7 +150,6 @@ class _WallBuilderState extends State<WallBuilder> {
 
     double xx, yy;
 
-    // Déterminer le point le plus proche sur la ligne
     if (param < 0) {
       xx = start.dx;
       yy = start.dy;
@@ -169,9 +176,13 @@ class _WallBuilderState extends State<WallBuilder> {
 
   // Gérer la sélection du menu
   void _selectMenu(String value) {
-    if (value == 'Mur') {
+    if (value == 'Poser Mur') {
       setState(() {
         isDrawingWall = true; // Activer le mode de dessin
+        // Désélectionner tout quand on entre en mode mur
+        selectedWall = null;
+        selectedEndpoint = null;
+        walls.forEach((wall) => wall.isSelected = false);
       });
     } else {
       setState(() {
@@ -187,7 +198,7 @@ class _WallBuilderState extends State<WallBuilder> {
         leading: PopupMenuButton<String>(
           onSelected: _selectMenu,
           itemBuilder: (BuildContext context) {
-            return {'Mur', 'Autres options'}.map((String choice) {
+            return {'Poser Mur', 'Editer Mur'}.map((String choice) {
               return PopupMenuItem<String>(
                 value: choice,
                 child: Text(choice),
@@ -195,14 +206,12 @@ class _WallBuilderState extends State<WallBuilder> {
             }).toList();
           },
         ),
-        title: Text(isDrawingWall ? 'Mode Dessin: Mur' : ''),
       ),
       body: MouseRegion(
         onHover: (PointerEvent details) {
-          if (startPoint != null) {
+          if (isDrawingWall && startPoint != null) {
             setState(() {
-              endPoint = _snapToGrid(details
-                  .localPosition); // Mettre à jour le point d'arrivée pendant le survol
+              endPoint = _snapToGrid(details.localPosition);
             });
           }
         },

@@ -37,7 +37,7 @@ class WallPainter extends CustomPainter {
     for (var wall in walls) {
       final paint = Paint()
         ..color = wall.isSelected ? Colors.orange : Colors.blue
-        ..strokeWidth = 20.0;
+        ..strokeWidth = 10.0;
 
       canvas.drawLine(wall.start, wall.end, paint); // Dessiner le mur
 
@@ -57,7 +57,7 @@ class WallPainter extends CustomPainter {
         endPoint!,
         Paint()
           ..color = Colors.red
-          ..strokeWidth = 20.0,
+          ..strokeWidth = 10.0,
       );
     }
 
